@@ -82,11 +82,11 @@ function QRScannerModal({ onClose, onScan }) {
 // QR Code Display Modal
 function QRCodeModal({ onClose }) {
   const envHost = import.meta.env.VITE_HOST_IP
+  const publicSiteUrl = import.meta.env.VITE_PUBLIC_SITE_URL || 'https://you-25-camp-app.vercel.app'
   const hostIsLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  const host = hostIsLocal && envHost
-    ? `${envHost}${window.location.port ? `:${window.location.port}` : ''}`
-    : window.location.host
-  const baseUrl = `${window.location.protocol}//${host}`
+  const baseUrl = hostIsLocal && envHost
+    ? `${window.location.protocol}//${envHost}${window.location.port ? `:${window.location.port}` : ''}`
+    : publicSiteUrl.replace(/\/$/, '')
   const qrValue = `${baseUrl}/register`
 
   const downloadQR = () => {
