@@ -13,7 +13,6 @@ function Home({ language, isDarkMode }) {
     { src: '/DF 9.jpeg', title: 'Bring and Share' },
     { src: '/DF 11.jpeg', title: 'Fellowship' },
     { src: '/Df 1.jpeg', title: 'Service' },
-    { src: '/DF 5.jpg', title: 'Ceremonies' },
     { src: '/DF 2.jpg', title: 'Thanksgiving' },
     { src: '/DF 4.jpg', title: 'Special Events' },
   ]
@@ -125,7 +124,7 @@ function Home({ language, isDarkMode }) {
           <div className="flex h-16 md:h-20 items-center justify-between gap-4">
             <Link to="/" className="flex items-center gap-3 shrink-0">
               <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden ${isDarkMode ? 'bg-gray-800/60' : 'bg-white/90'} shadow-sm ring-1 ring-black/5 flex items-center justify-center p-1`}>
-                <img src="/Logo-ERC.jpeg" alt="Camp logo" className="w-full h-full object-cover" />
+                <img src="/ERC.jpeg" alt="Camp logo" className="w-full h-full object-cover" />
               </div>
               <div className="hidden sm:block leading-tight">
                 <p className="text-sm md:text-base font-semibold text-gray-900">YOU-25 Camp 2026</p>
@@ -134,9 +133,9 @@ function Home({ language, isDarkMode }) {
             </Link>
 
             <div className="flex items-center gap-2 md:gap-4">
-              <Link to="/" className="inline-flex items-center transition hover:opacity-90">
+              {/*<Link to="/" className="inline-flex items-center transition hover:opacity-90">
                 <img src="/8558.png" alt="YOU-25 logo" className="h-10 w-auto object-contain md:h-14" />
-              </Link>
+              </Link>*/}
               <Link
                 to="/"
                 className="px-3 py-2 rounded-full text-sm md:text-base font-medium text-gray-700 hover:text-purple-700 hover:bg-purple-50 transition"
@@ -161,7 +160,7 @@ function Home({ language, isDarkMode }) {
           <div className="text-center">
             {/* Badge / YOU-25 logo */}
             <img
-              src="/8558.png"
+              src="/You-25 BL.png"
               alt={language === 'en' ? 'YOU-25 logo' : 'YOU-25'}
               className="mx-auto mb-8 mb-6 w-40 md:w-52 h-auto object-contain"
             />
