@@ -56,14 +56,14 @@ function Home({ language, isDarkMode }) {
           description: 'Spend time in prayer, worship, and spiritual reflection together.'
         },
         {
-          icon: Calendar,
-          title: 'Creating Unforgettable Memories',
-          description: 'Enjoy moments and activities that will stay with you long after the camp ends.'
+          icon: Award,
+          title: 'Word of God',
+          description: 'Studying the Word of God, Spiritual guidance, and practical lessons from the Word, Receive encouragement from the Bible.'
         },
         {
-          icon: Award,
-          title: 'Career Building and Guidance',
-          description: 'Receive encouragement, guidance, and inspiration for your future career path.'
+          icon: Calendar,
+          title: 'Creating Unforgettable Moments',
+          description: 'Enjoy moments and activities that will stay with you long after the camp ends.'
         }
       ]
     },
@@ -79,14 +79,14 @@ function Home({ language, isDarkMode }) {
           description: 'Gusengera hamwe, kuramya, no kwibaza ku buzima bw’umwuka.'
         },
         {
+          icon: Award,
+          title: 'Ijambo ry\'Imana',
+          description: 'Kwiga Ijambo ry\', Guhabwa ubutumwa, inshingano n\'inyigisho z\'ijambo ry\'Imana.'
+        },
+        {
           icon: Calendar,
           title: 'Gukora Ibihe Bitazibagirana',
           description: 'Kwishimira ibihe n’ibikorwa bizakugumamo nyuma y’inkambi.'
-        },
-        {
-          icon: Award,
-          title: 'Kubaka Umwuga no Kuyoborwa',
-          description: 'Gahabwa inama, ubutumwa, n’inkunga bijyanye n’inzira y’umwuga wawe.'
         }
       ]
     }
@@ -160,7 +160,7 @@ function Home({ language, isDarkMode }) {
           <div className="text-center">
             {/* Badge / YOU-25 logo */}
             <img
-              src="/You-25 BL.png"
+              src="/Logos (1).png"
               alt={language === 'en' ? 'YOU-25 logo' : 'YOU-25'}
               className="mx-auto mb-8 mb-6 w-40 md:w-52 h-auto object-contain"
             />
