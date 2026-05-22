@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate, Link } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { LogIn, ArrowLeft, LayoutDashboard, CreditCard, Settings, BarChart3, PieChart, Pencil, Trash2 } from 'lucide-react'
+import { LogIn, ArrowLeft, LayoutDashboard, CreditCard, Settings, BarChart3, PieChart, Pencil, Trash2, Download } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
+import { jsPDF } from 'jspdf'
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, HeadingLevel, WidthType } from 'docx'
 
 function AdminDashboard({ t, isDarkMode }) {
   const navigate = useNavigate()
@@ -39,6 +41,18 @@ function AdminDashboard({ t, isDarkMode }) {
   const [editPayment, setEditPayment] = useState(null)
   const [editAmount, setEditAmount] = useState('')
   const [editStatus, setEditStatus] = useState('')
+  const [registrationExportFormat, setRegistrationExportFormat] = useState('pdf')
+  const [paymentExportFormat, setPaymentExportFormat] = useState('pdf')
+  const [editRegistration, setEditRegistration] = useState(null)
+  const [editRegistrationForm, setEditRegistrationForm] = useState({
+    child_name: '',
+    child_age: '',
+    gender: '',
+    fellowships: '',
+    phone_number: '',
+    guardian_name: '',
+    guardian_phone: ''
+  })
 
   const navTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -152,6 +166,252 @@ function AdminDashboard({ t, isDarkMode }) {
     setEditPayment(payment)
     setEditAmount(payment.amount || '')
     setEditStatus(payment.status || '')
+  }
+
+  const openEditRegistration = (registration) => {
+    setEditRegistration(registration)
+    setEditRegistrationForm({
+      child_name: registration.child_name || '',
+      child_age: registration.child_age?.toString() || '',
+      gender: registration.gender || '',
+      fellowships: registration.fellowships || registration.pickup_location || '',
+      phone_number: registration.phone_number || '',
+      guardian_name: registration.guardian_name || '',
+      guardian_phone: registration.guardian_phone || ''
+    })
+  }
+
+  const clearRegistrationTable = () => {
+    if (!window.confirm('Clear the dashboard registration table view for now? The database records will stay available and can be restored by reloading data.')) return
+    setRegistrationsWithPayments([])
+    setTotalRegistrations(0)
+  }
+
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob)
+    const downloadLink = document.createElement('a')
+    downloadLink.href = url
+    downloadLink.download = filename
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    document.body.removeChild(downloadLink)
+    URL.revokeObjectURL(url)
+  }
+
+  const exportDocx = async ({ title, rows, columns, filename }) => {
+    if (!rows.length) {
+      toast.error('No records available to download')
+      return
+    }
+
+    const documentTables = [
+      new Paragraph({ text: title, heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }),
+      new Paragraph({ text: `Generated on: ${new Date().toLocaleString()}`, spacing: { after: 300 } }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: columns.map((column) => new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: column.label, bold: true })] })]
+            }))
+          }),
+          ...rows.map((row) => new TableRow({
+            children: columns.map((column) => new TableCell({
+              children: [new Paragraph(String(row[column.key] ?? ''))]
+            }))
+          }))
+        ]
+      })
+    ]
+
+    const doc = new Document({
+      sections: [{ children: documentTables }]
+    })
+
+    const blob = await Packer.toBlob(doc)
+    downloadBlob(blob, filename)
+  }
+
+  const exportPdf = ({ title, rows, columns, filename }) => {
+    if (!rows.length) {
+      toast.error('No records available to download')
+      return
+    }
+
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 40
+    let y = margin
+
+    pdf.setFontSize(18)
+    pdf.text(title, margin, y)
+    y += 22
+    pdf.setFontSize(10)
+    pdf.text(`Generated on: ${new Date().toLocaleString()}`, margin, y)
+    y += 22
+
+    rows.forEach((row, rowIndex) => {
+      const rowHeading = `Record ${rowIndex + 1}`
+      const headingSpace = 16
+      if (y > pageHeight - margin - 80) {
+        pdf.addPage()
+        y = margin
+      }
+
+      pdf.setFontSize(12)
+      pdf.setFont(undefined, 'bold')
+      pdf.text(rowHeading, margin, y)
+      y += headingSpace
+
+      pdf.setFont(undefined, 'normal')
+      pdf.setFontSize(10)
+
+      columns.forEach((column) => {
+        const line = `${column.label}: ${String(row[column.key] ?? '')}`
+        const wrappedLines = pdf.splitTextToSize(line, pageWidth - margin * 2)
+        const neededHeight = wrappedLines.length * 14
+        if (y + neededHeight > pageHeight - margin) {
+          pdf.addPage()
+          y = margin
+        }
+        pdf.text(wrappedLines, margin, y)
+        y += neededHeight
+      })
+
+      y += 12
+    })
+
+    pdf.save(filename)
+  }
+
+  const exportReport = async ({ format, title, rows, columns, baseName }) => {
+    const filename = `${baseName}.${format}`
+    if (format === 'pdf') {
+      exportPdf({ title, rows, columns, filename })
+      return
+    }
+
+    await exportDocx({ title, rows, columns, filename })
+  }
+
+  const downloadRegistrationsReport = async () => {
+    const rows = registrationsWithPayments.map((registration, index) => ({
+      '#': index + 1,
+      child_name: registration.child_name || '',
+      guardian_name: registration.guardian_name || '',
+      phone_number: registration.phone_number || '',
+      guardian_phone: registration.guardian_phone || '',
+      child_age: registration.child_age || '',
+      gender: registration.gender || '',
+      fellowships: registration.fellowships || registration.pickup_location || '',
+      paid: registration.paid || 0,
+      remaining: registration.remaining || 0,
+      payment_status: registration.payment_status || ''
+    }))
+
+    await exportReport({
+      format: registrationExportFormat,
+      title: 'Registration Report',
+      rows,
+      columns: [
+        { label: '#', key: '#' },
+        { label: 'Child', key: 'child_name' },
+        { label: 'Guardian', key: 'guardian_name' },
+        { label: 'Child Phone', key: 'phone_number' },
+        { label: 'Guardian Phone', key: 'guardian_phone' },
+        { label: 'Age', key: 'child_age' },
+        { label: 'Gender', key: 'gender' },
+        { label: 'Fellowship', key: 'fellowships' },
+        { label: 'Paid', key: 'paid' },
+        { label: 'Remaining', key: 'remaining' },
+        { label: 'Status', key: 'payment_status' }
+      ],
+      baseName: 'registration-report'
+    })
+  }
+
+  const downloadPaymentsReport = async () => {
+    const rows = payments.map((payment, index) => ({
+      '#': index + 1,
+      payer_name: payment.payer_name || payment.payer || '',
+      recipient_name: payment.recipient_name || payment.recipient || '',
+      amount: payment.amount || 0,
+      status: payment.status || 'pending',
+      payment_code: payment.payment_code || payment.code || '',
+      created_at: payment.created_at || '',
+      child_id: payment.child_id || ''
+    }))
+
+    await exportReport({
+      format: paymentExportFormat,
+      title: 'Payment Report',
+      rows,
+      columns: [
+        { label: '#', key: '#' },
+        { label: 'Payer', key: 'payer_name' },
+        { label: 'Recipient', key: 'recipient_name' },
+        { label: 'Amount', key: 'amount' },
+        { label: 'Status', key: 'status' },
+        { label: 'Payment Code', key: 'payment_code' },
+        { label: 'Created At', key: 'created_at' },
+        { label: 'Child ID', key: 'child_id' }
+      ],
+      baseName: 'payment-report'
+    })
+  }
+
+  const saveEditRegistration = async () => {
+    if (!editRegistration) return
+
+    try {
+      const payload = {
+        child_name: editRegistrationForm.child_name,
+        child_age: parseInt(editRegistrationForm.child_age, 10) || null,
+        gender: editRegistrationForm.gender || null,
+        pickup_location: editRegistrationForm.fellowships || null,
+        phone_number: editRegistrationForm.phone_number || null,
+        guardian_name: editRegistrationForm.guardian_name,
+        guardian_phone: editRegistrationForm.guardian_phone || null
+      }
+
+      const { error } = await supabase.from('registered_children').update(payload).eq('id', editRegistration.id)
+      if (error) throw error
+
+      toast.success('Registration updated')
+      setEditRegistration(null)
+      setEditRegistrationForm({
+        child_name: '',
+        child_age: '',
+        gender: '',
+        fellowships: '',
+        phone_number: '',
+        guardian_name: '',
+        guardian_phone: ''
+      })
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      console.error('Save registration edit error:', err)
+      toast.error('Failed to update registration')
+    }
+  }
+
+  const deleteRegistration = async (registrationId) => {
+    if (!window.confirm('Delete this registration and its related payment records?')) return
+
+    try {
+      const { error: paymentError } = await supabase.from('payments').delete().eq('child_id', registrationId)
+      if (paymentError) throw paymentError
+
+      const { error } = await supabase.from('registered_children').delete().eq('id', registrationId)
+      if (error) throw error
+
+      toast.success('Registration deleted')
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      console.error('Delete registration error:', err)
+      toast.error('Failed to delete registration')
+    }
   }
 
   const deletePayment = async (paymentId) => {
@@ -402,7 +662,26 @@ function AdminDashboard({ t, isDarkMode }) {
             </div>
             {/* All Registrations Table (full list) */}
             <div className={`mt-8 p-6 rounded-xl shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>All Registrations</h3>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>All Registrations</h3>
+                <div className="flex flex-wrap gap-2">
+                    <select
+                      value={registrationExportFormat}
+                      onChange={(e) => setRegistrationExportFormat(e.target.value)}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                      aria-label="Registration report format"
+                    >
+                      <option value="pdf">PDF</option>
+                      <option value="docx">DOCX</option>
+                    </select>
+                    <button onClick={downloadRegistrationsReport} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                      <Download size={16} /> Download Registration Report
+                    </button>
+                  <button onClick={clearRegistrationTable} className="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                    Clear Table View
+                  </button>
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
@@ -414,6 +693,7 @@ function AdminDashboard({ t, isDarkMode }) {
                       <th className="px-4 py-2 text-left text-sm font-medium">Paid</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">Remaining</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
@@ -430,6 +710,22 @@ function AdminDashboard({ t, isDarkMode }) {
                             {r.payment_status}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openEditRegistration(r)}
+                              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:opacity-90"
+                            >
+                              <Pencil size={14} /> Edit
+                            </button>
+                            <button
+                              onClick={() => deleteRegistration(r.id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:opacity-90"
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -441,10 +737,24 @@ function AdminDashboard({ t, isDarkMode }) {
 
         {activeTab === 'payments' && (
           <div className={`rounded-xl shadow-lg overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className="p-6">
-              <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            <div className="p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 Payment History
               </h3>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={paymentExportFormat}
+                  onChange={(e) => setPaymentExportFormat(e.target.value)}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                  aria-label="Payment report format"
+                >
+                  <option value="pdf">PDF</option>
+                  <option value="docx">DOCX</option>
+                </select>
+                <button onClick={downloadPaymentsReport} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                  <Download size={16} /> Download Payment Report
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -632,6 +942,53 @@ function AdminDashboard({ t, isDarkMode }) {
             <div className="mt-6 flex gap-3 justify-end">
               <button onClick={() => { setEditPayment(null); setEditAmount(''); setEditStatus('') }} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
               <button onClick={saveEditPayment} className="px-4 py-2 bg-purple-600 text-white rounded-lg">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Registration Modal */}
+      {editRegistration && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4">Edit Registration</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-600">Child Name</label>
+                <input value={editRegistrationForm.child_name} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, child_name: e.target.value })} className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Child Age</label>
+                <input type="number" value={editRegistrationForm.child_age} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, child_age: e.target.value })} className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Gender</label>
+                <select value={editRegistrationForm.gender} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, gender: e.target.value })} className="w-full px-3 py-2 rounded-lg border">
+                  <option value="">Select</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Fellowship</label>
+                <input value={editRegistrationForm.fellowships} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, fellowships: e.target.value })} className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Phone</label>
+                <input value={editRegistrationForm.phone_number} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, phone_number: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" maxLength={10} pattern="[0-9]{10}" className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Guardian Name</label>
+                <input value={editRegistrationForm.guardian_name} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, guardian_name: e.target.value })} className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Guardian Phone</label>
+                <input value={editRegistrationForm.guardian_phone} onChange={(e) => setEditRegistrationForm({ ...editRegistrationForm, guardian_phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} inputMode="numeric" maxLength={10} pattern="[0-9]{10}" className="w-full px-3 py-2 rounded-lg border" />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button onClick={() => { setEditRegistration(null); setEditRegistrationForm({ child_name: '', child_age: '', gender: '', fellowships: '', phone_number: '', guardian_name: '', guardian_phone: '' }) }} className="px-4 py-2 bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={saveEditRegistration} className="px-4 py-2 bg-purple-600 text-white rounded-lg">Save</button>
             </div>
           </div>
         </div>

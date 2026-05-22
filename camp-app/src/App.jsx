@@ -473,8 +473,12 @@ function MainContent({ t, isDarkMode, setShowQRCodeModal, supabaseConnected, sho
 
   const FIXED_CODE = '1395770'
 
+  const sanitizePhoneNumber = (value) => value.replace(/\D/g, '').slice(0, 10)
+
   const handleRegChange = (e) => {
-    setRegForm({ ...regForm, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    const nextValue = name === 'phone_number' || name === 'guardian_phone' ? sanitizePhoneNumber(value) : value
+    setRegForm({ ...regForm, [name]: nextValue })
   }
 
   const handlePayChange = (e) => {
@@ -626,7 +630,7 @@ function MainContent({ t, isDarkMode, setShowQRCodeModal, supabaseConnected, sho
             <div className="p-4 sm:p-6 md:p-8">
               <div className="text-center mb-6">
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">Camp Registration</h2>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Fill in the form below to register for Youth Camp 2025</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Fill in the form below to register for Youth Camp 2026</p>
               </div>
 
               <form onSubmit={handleSubmit}>
@@ -645,9 +649,9 @@ function MainContent({ t, isDarkMode, setShowQRCodeModal, supabaseConnected, sho
                       <option value="F">Female</option>
                     </select>
                     <input type="text" name="fellowships" placeholder="Gathers From (Fellowship)" value={regForm.fellowships} onChange={handleRegChange} className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" />
-                    <input type="tel" name="phone_number" placeholder="Child's Phone" value={regForm.phone_number} onChange={handleRegChange} className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" />
+                    <input type="tel" name="phone_number" placeholder="Child's Phone" value={regForm.phone_number} onChange={handleRegChange} inputMode="numeric" maxLength={10} pattern="[0-9]{10}" className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" />
                     <input type="text" name="guardian_name" placeholder="Guardian's Name *" value={regForm.guardian_name} onChange={handleRegChange} className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" required />
-                    <input type="tel" name="guardian_phone" placeholder="Guardian's Phone" value={regForm.guardian_phone} onChange={handleRegChange} className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" />
+                    <input type="tel" name="guardian_phone" placeholder="Guardian's Phone" value={regForm.guardian_phone} onChange={handleRegChange} inputMode="numeric" maxLength={10} pattern="[0-9]{10}" className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-xl border focus:ring-2 focus:ring-purple-500" />
                   </div>
                 </div>
 
